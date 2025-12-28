@@ -30,6 +30,10 @@ class VectorService:
         self.is_available = False
 
         try:
+            # Debug: Log configuration
+            logger.info(f"[Vector Service] QDRANT_URL: {settings.QDRANT_URL}")
+            logger.info(f"[Vector Service] QDRANT_API_KEY present: {bool(settings.QDRANT_API_KEY)}")
+
             # Connect to Qdrant (Cloud or Local)
             if settings.QDRANT_API_KEY:
                 # Qdrant Cloud connection
