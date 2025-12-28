@@ -30,14 +30,25 @@ class VectorService:
         self.is_available = False
 
         try:
-            # Connect to Qdrant
-            qdrant_host = settings.QDRANT_URL.replace('http://', '').replace('https://', '').split(':')[0]
-            qdrant_port = 6333
-
-            self.client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5)
+            # Connect to Qdrant (Cloud or Local)
+            if settings.QDRANT_API_KEY:
+                # Qdrant Cloud connection
+                logger.info("[Vector Service] Connecting to Qdrant Cloud...")
+                self.client = QdrantClient(
+                    url=settings.QDRANT_URL,
+                    api_key=settings.QDRANT_API_KEY,
+                    timeout=10
+                )
+            else:
+                # Local Qdrant connection
+                logger.info("[Vector Service] Connecting to local Qdrant...")
+                qdrant_host = settings.QDRANT_URL.replace('http://', '').replace('https://', '').split(':')[0]
+                qdrant_port = 6333
+                self.client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5)
 
             # Test connection
             self.client.get_collections()
+            logger.info("[Vector Service] Connected to Qdrant successfully")
 
             # Initialize embedding model
             # Using multilingual model for English + Chinese support
