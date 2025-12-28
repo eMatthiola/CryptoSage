@@ -113,6 +113,10 @@ class VectorService:
         Returns:
             True if successful, False otherwise
         """
+        # Skip if service is not available
+        if not self.is_available:
+            return False
+
         try:
             # Generate combined text for embedding
             combined_text = f"{article.get('title', '')} {article.get('content', '')}"
@@ -189,6 +193,10 @@ class VectorService:
         Returns:
             List of relevant articles with scores
         """
+        # Return empty list if service is not available
+        if not self.is_available:
+            return []
+
         try:
             # Generate query embedding
             query_embedding = self._generate_embedding(query)
@@ -297,6 +305,13 @@ class VectorService:
         Returns:
             Dict with collection stats
         """
+        if not self.is_available:
+            return {
+                "total_articles": 0,
+                "status": "unavailable",
+                "message": "Vector service is not available"
+            }
+
         try:
             collection_info = self.client.get_collection(self.collection_name)
 
