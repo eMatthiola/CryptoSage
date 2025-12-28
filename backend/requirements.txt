@@ -1,61 +1,53 @@
 # FastAPI and Server
-fastapi==0.125.0
-uvicorn[standard]==0.38.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
 
 # CORS and Middleware
-python-multipart==0.0.6
+python-multipart>=0.0.6
 
 # Rate Limiting
-slowapi==0.1.9
+slowapi>=0.1.9
 
 # Database
-sqlalchemy==2.0.25
-alembic==1.13.1
+sqlalchemy>=2.0.0
+alembic>=1.13.0
 
-# Redis
-redis==5.0.1
-hiredis==2.3.2
+# Redis (optional)
+redis>=5.0.0
+hiredis>=2.3.0
 
 # OpenAI and LangChain
-openai==2.14.0
-langchain==0.1.6
-langchain-openai==0.0.5
+openai>=1.12.0
+langchain>=0.1.0
+langchain-openai>=0.0.5
 
 # Binance
-python-binance==1.0.34
+python-binance>=1.0.0
 
 # Data Processing
-pandas==2.2.0
-numpy==1.26.3
+pandas>=2.0.0
+numpy>=1.24.0
 
 # Machine Learning
-scikit-learn==1.4.0
-joblib==1.3.2
+scikit-learn>=1.3.0
+joblib>=1.3.0
 
-# Technical Analysis
-ta-lib==0.4.28  # May require manual installation
-# Alternative: ta (pure Python)
-ta==0.11.0
+# Technical Analysis (pure Python - no C compiler needed)
+ta>=0.11.0
 
 # Utilities
-python-dotenv==1.0.1
-httpx==0.26.0
-aiohttp==3.9.3
+python-dotenv>=1.0.0
+httpx>=0.26.0
+aiohttp>=3.9.0
 
 # RAG and Vector Database
-qdrant-client==1.7.3
-sentence-transformers==2.3.1
-feedparser==6.0.10
-transformers==4.37.0
-torch==2.1.2
-apscheduler==3.10.4
-beautifulsoup4==4.12.3
-lxml==5.1.0
-
-# Development
-pytest==8.0.0
-pytest-asyncio==0.23.4
-black==24.1.1
-flake8==7.0.0
+qdrant-client>=1.7.0
+sentence-transformers>=2.3.0
+feedparser>=6.0.0
+transformers>=4.35.0
+torch>=2.1.0
+apscheduler>=3.10.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
