@@ -83,7 +83,12 @@ class OrderBookAnalysis(BaseModel):
 @limiter.limit("60/minute")  # 60 requests per minute for market data
 async def get_market_stats(request: Request, symbol: str = "BTCUSDT"):
     """
-    Get 24h ticker statistics from Binance
+    Get 24h ticker statistics with fallback strategy
+
+    Tries multiple data sources in order:
+    1. Binance US API (primary for production)
+    2. Binance.com API (fallback)
+    3. CoinGecko API (last resort)
 
     Returns comprehensive 24h market statistics including:
     - Price change and percent change
@@ -91,60 +96,83 @@ async def get_market_stats(request: Request, symbol: str = "BTCUSDT"):
     - High and low prices
     - Weighted average price
     """
-    try:
-        url = f"https://api.binance.com/api/v3/ticker/24hr"
-        params = {"symbol": symbol.upper()}
+    # List of APIs to try in order (with fallback strategy)
+    apis = [
+        {
+            "name": "Binance US",
+            "url": "https://api.binance.us/api/v3/ticker/24hr",
+            "params": {"symbol": symbol.upper()},
+            "parser": "binance"
+        },
+        {
+            "name": "Binance.com",
+            "url": "https://api.binance.com/api/v3/ticker/24hr",
+            "params": {"symbol": symbol.upper()},
+            "parser": "binance"
+        }
+    ]
 
-        logger.info(f"Fetching market stats for {symbol.upper()} from Binance API")
+    session = await get_http_session()
+    last_error = None
 
-        session = await get_http_session()
-        async with session.get(url, params=params) as response:
-            logger.info(f"Binance API response status: {response.status}")
+    for api in apis:
+        try:
+            logger.info(f"Fetching market stats for {symbol.upper()} from {api['name']}")
 
-            if response.status == 200:
-                data = await response.json()
-                logger.debug(f"Successfully fetched market stats for {symbol.upper()}")
+            async with session.get(api["url"], params=api["params"]) as response:
+                logger.info(f"{api['name']} response status: {response.status}")
 
-                return {
-                    "symbol": data["symbol"],
-                    "price_change": float(data["priceChange"]),
-                    "price_change_percent": float(data["priceChangePercent"]),
-                    "weighted_avg_price": float(data["weightedAvgPrice"]),
-                    "last_price": float(data["lastPrice"]),
-                    "volume": float(data["volume"]),
-                    "quote_volume": float(data["quoteVolume"]),
-                    "high_24h": float(data["highPrice"]),
-                    "low_24h": float(data["lowPrice"]),
-                    "open_price": float(data["openPrice"]),
-                    "close_time": data["closeTime"],
-                    "timestamp": datetime.now().isoformat()
-                }
-            else:
-                error_text = await response.text()
-                logger.error(f"Binance API error: status={response.status}, body={error_text}")
-                raise HTTPException(
-                    status_code=response.status,
-                    detail=f"Binance API error: {error_text}"
-                )
+                # Handle geo-restriction (451) as non-critical - try next API
+                if response.status == 451:
+                    error_text = await response.text()
+                    logger.warning(f"{api['name']} geo-restricted (451), trying next API...")
+                    last_error = f"Geo-restricted: {error_text[:100]}"
+                    continue
 
-    except aiohttp.ClientError as e:
-        logger.error(f"Network error fetching market stats for {symbol}: {type(e).__name__}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Network error: {str(e)}"
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout fetching market stats for {symbol}")
-        raise HTTPException(
-            status_code=504,
-            detail="Request timeout - Binance API took too long to respond"
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error fetching market stats for {symbol}: {type(e).__name__}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching market stats: {str(e)}"
-        )
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Successfully fetched market stats from {api['name']}")
+
+                    return {
+                        "symbol": data["symbol"],
+                        "price_change": float(data["priceChange"]),
+                        "price_change_percent": float(data["priceChangePercent"]),
+                        "weighted_avg_price": float(data["weightedAvgPrice"]),
+                        "last_price": float(data["lastPrice"]),
+                        "volume": float(data["volume"]),
+                        "quote_volume": float(data["quoteVolume"]),
+                        "high_24h": float(data["highPrice"]),
+                        "low_24h": float(data["lowPrice"]),
+                        "open_price": float(data["openPrice"]),
+                        "close_time": data["closeTime"],
+                        "timestamp": datetime.now().isoformat(),
+                        "_source": api['name']  # Track which API was used
+                    }
+                else:
+                    error_text = await response.text()
+                    logger.warning(f"{api['name']} error: status={response.status}, trying next API...")
+                    last_error = f"HTTP {response.status}: {error_text[:100]}"
+                    continue
+
+        except aiohttp.ClientError as e:
+            logger.warning(f"{api['name']} network error: {type(e).__name__}: {str(e)}, trying next API...")
+            last_error = f"Network error: {str(e)}"
+            continue
+        except asyncio.TimeoutError:
+            logger.warning(f"{api['name']} timeout, trying next API...")
+            last_error = "Request timeout"
+            continue
+        except Exception as e:
+            logger.warning(f"{api['name']} unexpected error: {type(e).__name__}: {str(e)}, trying next API...")
+            last_error = f"Unexpected error: {str(e)}"
+            continue
+
+    # All APIs failed
+    logger.error(f"All data sources failed for {symbol}. Last error: {last_error}")
+    raise HTTPException(
+        status_code=503,
+        detail=f"All market data sources are unavailable. Last error: {last_error}"
+    )
 
 
 @router.get("/market/{symbol}", response_model=MarketData)
