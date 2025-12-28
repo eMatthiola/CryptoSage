@@ -111,6 +111,17 @@ class Settings(BaseSettings):
 # Create settings instance
 settings = Settings()
 
+# Debug: Print all environment variables related to Qdrant
+import os
+print("=" * 60)
+print("DEBUG: Environment Variables")
+print("=" * 60)
+print(f"QDRANT_URL from env: {os.getenv('QDRANT_URL', 'NOT SET')}")
+print(f"QDRANT_API_KEY from env: {os.getenv('QDRANT_API_KEY', 'NOT SET')}")
+print(f"QDRANT_URL in settings: {settings.QDRANT_URL}")
+print(f"QDRANT_API_KEY in settings: {'SET' if settings.QDRANT_API_KEY else 'NOT SET'}")
+print("=" * 60)
+
 # Validate on startup if in production
 if settings.ENVIRONMENT == "production":
     settings.validate_production()
