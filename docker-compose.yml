@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: cryptosage-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cryptosage
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cryptosage-network
+    restart: unless-stopped
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: cryptosage-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cryptosage-network
+    restart: unless-stopped
+
+  # Qdrant 向量数据库
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cryptosage-qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - cryptosage-network
+    restart: unless-stopped
+
+  # 后端 API (开发环境 - 本地构建)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cryptosage-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cryptosage
+      # Redis
+      - REDIS_URL=redis://:redis_password@redis:6379
+      # Qdrant
+      - QDRANT_URL=http://qdrant:6333
+      # OpenAI (从宿主机 .env 文件读取)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o-mini
+      # Binance (可选)
+      - BINANCE_API_KEY=${BINANCE_API_KEY:-}
+      - BINANCE_SECRET_KEY=${BINANCE_SECRET_KEY:-}
+      # App Config
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+    volumes:
+      - ./backend:/app  # 开发模式：挂载代码以支持热重载
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - cryptosage-network
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # 前端 Web (开发环境 - 本地构建)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: cryptosage-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app  # 开发模式：挂载代码以支持热重载
+      - /app/node_modules  # 避免覆盖 node_modules
+      - /app/.next  # 避免覆盖 .next
+    depends_on:
+      - backend
+    networks:
+      - cryptosage-network
+    restart: unless-stopped
+    command: npm run dev
+
+# 网络配置
+networks:
+  cryptosage-network:
+    driver: bridge
+
+# 数据卷
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  backend_logs:
+    driver: local

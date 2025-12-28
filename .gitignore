@@ -1,0 +1,115 @@
+# ==================================
+# CryptoSage AI - Git 忽略文件
+# ==================================
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+ENV/
+env/
+.venv
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+.vercel
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志
+logs/
+*.log
+
+# 备份
+backup/
+*.backup
+*.bak
+
+# 模型文件
+models/*.pkl
+models/*.joblib
+models/*.h5
+*.pth
+
+# 数据文件
+data/
+!data/.gitkeep
+*.csv
+*.json
+!package.json
+!tsconfig.json
+!.env.example
+
+# IP限流数据（不要提交到Git）
+backend/data/ip_usage.json
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+.npm-cache/
+nul
