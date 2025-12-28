@@ -1,0 +1,40 @@
+# CryptoSage AI - 项目文件清单
+
+## 📚 文档文件
+- README.md                  (9.4 KB)  - 项目说明
+- QUICKSTART.md              (4.6 KB)  - 快速开始指南
+- PROJECT_SUMMARY.md         (7.7 KB)  - 项目总结
+- LOCATION_UPDATE.md         (新)      - 位置更新说明
+
+## 📖 详细文档 (docs/)
+- docs/ARCHITECTURE.md       (32.1 KB) - 系统架构设计
+- docs/API.md               (20.0 KB) - API 规范文档
+- docs/DATABASE.md          (19.7 KB) - 数据库设计
+- docs/DEVELOPMENT.md       (19.6 KB) - 开发指南
+- docs/DEPLOYMENT.md        (16.9 KB) - 部署指南
+
+## 🔧 配置文件
+- docker-compose.yml         (3.6 KB)  - Docker 编排配置
+- .env.example              (2.4 KB)  - 环境变量模板
+- .gitignore                (1.1 KB)  - Git 忽略规则
+- Makefile                  (3.8 KB)  - 开发命令集合
+
+## 🐳 Docker 文件
+- backend/Dockerfile         (940 B)   - 后端容器化
+- frontend/Dockerfile        (1.2 KB)  - 前端生产构建
+- frontend/Dockerfile.dev    (371 B)   - 前端开发构建
+
+## 📁 目录结构
+- backend/                   - FastAPI 后端 (待初始化)
+- frontend/                  - Next.js 前端 (待初始化)
+- docs/                      - 完整文档
+- docker/                    - Docker 配置
+
+## 📊 统计
+- 文档总数: 13 个
+- 文档总字数: 约 20,000 字
+- 配置文件: 7 个
+- 总大小: 约 150 KB
+
+## 当前位置
+H:\Projects\AI\cryptosage

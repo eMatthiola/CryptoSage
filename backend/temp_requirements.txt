@@ -1,0 +1,5 @@
+fastapi==0.125.0
+openai==2.14.0
+python-binance==1.0.34
+slowapi==0.1.9
+uvicorn==0.38.0
