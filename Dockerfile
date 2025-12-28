@@ -35,7 +35,7 @@ COPY backend/ .
 EXPOSE 8000
 
 # Health check - use 127.0.0.1 instead of localhost for Docker
-HEALTHCHECK --interval=30s --timeout=30s --start-period=120s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://127.0.0.1:8000/ || exit 1
 
 # Set Qdrant environment variables as fallback
