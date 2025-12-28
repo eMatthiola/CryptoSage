@@ -38,5 +38,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=120s --retries=3 \
     CMD curl -f http://127.0.0.1:8000/ || exit 1
 
+# Set Qdrant environment variables as fallback
+ENV QDRANT_URL="https://55260239-2c43-43de-a248-3a2022d4a051.us-west-1-0.aws.cloud.qdrant.io"
+ENV QDRANT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SICxL74P0MK_0U5zYPiCY2ZE8JQ19sxOvSKO743Ta9g"
+
 # Run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
