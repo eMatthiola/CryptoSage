@@ -133,12 +133,13 @@ class SchedulerService:
         self.is_running = True
 
         logger.info("[Scheduler] Scheduler started successfully")
-        logger.info("[Scheduler] Running initial news collection...\n")
+        logger.info("[Scheduler] Initial news collection will run in 2 minutes...\n")
 
-        # Run initial collection immediately
+        # Run initial collection after 2 minutes to avoid blocking startup
         self.scheduler.add_job(
             self.collect_and_store_news,
-            trigger='date',  # Run once immediately
+            trigger='date',
+            run_date=datetime.now() + timedelta(minutes=2),
             id='initial_news_collection',
             name='Initial news collection'
         )
