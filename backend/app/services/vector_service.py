@@ -23,25 +23,37 @@ class VectorService:
 
     def __init__(self):
         """Initialize vector service"""
-        # Connect to Qdrant
-        qdrant_host = settings.QDRANT_URL.replace('http://', '').replace('https://', '').split(':')[0]
-        qdrant_port = 6333
-
-        self.client = QdrantClient(host=qdrant_host, port=qdrant_port)
-
-        # Initialize embedding model
-        # Using multilingual model for English + Chinese support
-        logger.info("[Vector Service] Loading embedding model...")
-        self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        self.embedding_dimension = 384  # MiniLM output dimension
-
-        # Collection name
+        self.client = None
+        self.embedding_model = None
+        self.embedding_dimension = 384
         self.collection_name = "crypto_news"
+        self.is_available = False
 
-        # Initialize collection
-        self._init_collection()
+        try:
+            # Connect to Qdrant
+            qdrant_host = settings.QDRANT_URL.replace('http://', '').replace('https://', '').split(':')[0]
+            qdrant_port = 6333
 
-        logger.info("[Vector Service] Initialized successfully")
+            self.client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5)
+
+            # Test connection
+            self.client.get_collections()
+
+            # Initialize embedding model
+            # Using multilingual model for English + Chinese support
+            logger.info("[Vector Service] Loading embedding model...")
+            self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+            # Initialize collection
+            self._init_collection()
+
+            self.is_available = True
+            logger.info("[Vector Service] Initialized successfully with Qdrant")
+
+        except Exception as e:
+            logger.info(f"[Vector Service] Qdrant not available: {e}")
+            logger.info("[Vector Service] Running in degraded mode - RAG features disabled")
+            self.is_available = False
 
     def _init_collection(self):
         """Initialize or verify Qdrant collection"""
