@@ -6,7 +6,7 @@ Handles text vectorization and similarity search using Qdrant
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, Range
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, Range, PayloadSchemaType
 from sentence_transformers import SentenceTransformer
 import uuid
 from app.core.config import settings
@@ -71,7 +71,7 @@ class VectorService:
             self.is_available = False
 
     def _init_collection(self):
-        """Initialize or verify Qdrant collection"""
+        """Initialize or verify Qdrant collection and create required indexes"""
         try:
             # Check if collection exists
             collections = self.client.get_collections().collections
@@ -89,6 +89,19 @@ class VectorService:
                 logger.info(f"[Vector Service] Collection created successfully")
             else:
                 logger.info(f"[Vector Service] Collection '{self.collection_name}' already exists")
+
+            # Create payload indexes for filtering
+            # This is required for fields used in Filter conditions
+            try:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="symbols",
+                    field_schema=PayloadSchemaType.KEYWORD
+                )
+                logger.info(f"[Vector Service] Created payload index for 'symbols' field")
+            except Exception as e:
+                # Index might already exist, which is fine
+                logger.debug(f"[Vector Service] Payload index creation note: {e}")
 
         except Exception as e:
             logger.info(f"[Vector Service] Error initializing collection: {e}")

@@ -20,7 +20,11 @@ class HistoricalDataService:
     """Service for collecting historical cryptocurrency data"""
 
     def __init__(self):
-        self.base_url = "https://api.binance.com/api/v3"
+        # Use Binance US as primary to avoid geo-restrictions
+        self.base_urls = [
+            "https://api.binance.us/api/v3",  # Primary for US-based servers
+            "https://api.binance.com/api/v3"   # Fallback
+        ]
         self.data_dir = "data/klines"
         os.makedirs(self.data_dir, exist_ok=True)
 
@@ -53,7 +57,11 @@ class HistoricalDataService:
         end_time: Optional[int] = None
     ) -> List[List]:
         """
-        Fetch historical K-line data from Binance
+        Fetch historical K-line data with fallback strategy
+
+        Tries multiple data sources to avoid geo-restrictions:
+        1. Binance US API (primary)
+        2. Binance.com API (fallback)
 
         Args:
             symbol: Trading symbol (e.g., BTCUSDT)
@@ -65,7 +73,6 @@ class HistoricalDataService:
         Returns:
             List of K-line data [timestamp, open, high, low, close, volume, ...]
         """
-        url = f"{self.base_url}/klines"
         params = {
             "symbol": symbol,
             "interval": interval,
@@ -77,15 +84,39 @@ class HistoricalDataService:
         if end_time:
             params["endTime"] = end_time
 
-        # Use shared session instead of creating new one
         session = await self._get_session()
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                data = await response.json()
-                return data
-            else:
-                error_text = await response.text()
-                raise Exception(f"Binance API error: {response.status} - {error_text}")
+        last_error = None
+
+        # Try each API in order
+        for base_url in self.base_urls:
+            url = f"{base_url}/klines"
+            api_name = "Binance US" if "binance.us" in base_url else "Binance.com"
+
+            try:
+                async with session.get(url, params=params) as response:
+                    # Handle geo-restriction (451) - try next API
+                    if response.status == 451:
+                        logger.warning(f"[Historical Data] {api_name} geo-restricted (451), trying next...")
+                        last_error = "Geo-restricted"
+                        continue
+
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.debug(f"[Historical Data] Successfully fetched from {api_name}")
+                        return data
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"[Historical Data] {api_name} error: {response.status}, trying next...")
+                        last_error = f"HTTP {response.status}"
+                        continue
+
+            except Exception as e:
+                logger.warning(f"[Historical Data] {api_name} exception: {type(e).__name__}, trying next...")
+                last_error = str(e)
+                continue
+
+        # All APIs failed
+        raise Exception(f"All data sources failed for historical data. Last error: {last_error}")
 
     async def collect_historical_data(
         self,
