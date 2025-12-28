@@ -7,18 +7,33 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
+import asyncio
 from app.services.market_service import get_market_service
 from app.services.historical_data_service import HistoricalDataService
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from app.core.logger import get_logger
 import numpy as np
+import aiohttp
 
 
 # Initialize limiter
 limiter = Limiter(key_func=get_remote_address)
+logger = get_logger(__name__)
 
 router = APIRouter()
 historical_service = HistoricalDataService()
+
+# Shared aiohttp session for better performance
+_http_session: Optional[aiohttp.ClientSession] = None
+
+async def get_http_session() -> aiohttp.ClientSession:
+    """Get or create shared HTTP session"""
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+        _http_session = aiohttp.ClientSession(timeout=timeout)
+    return _http_session
 
 
 class MarketData(BaseModel):
@@ -77,34 +92,55 @@ async def get_market_stats(request: Request, symbol: str = "BTCUSDT"):
     - Weighted average price
     """
     try:
-        import aiohttp
-
         url = f"https://api.binance.com/api/v3/ticker/24hr"
         params = {"symbol": symbol.upper()}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+        logger.info(f"Fetching market stats for {symbol.upper()} from Binance API")
 
-                    return {
-                        "symbol": data["symbol"],
-                        "price_change": float(data["priceChange"]),
-                        "price_change_percent": float(data["priceChangePercent"]),
-                        "weighted_avg_price": float(data["weightedAvgPrice"]),
-                        "last_price": float(data["lastPrice"]),
-                        "volume": float(data["volume"]),
-                        "quote_volume": float(data["quoteVolume"]),
-                        "high_24h": float(data["highPrice"]),
-                        "low_24h": float(data["lowPrice"]),
-                        "open_price": float(data["openPrice"]),
-                        "close_time": data["closeTime"],
-                        "timestamp": datetime.now().isoformat()
-                    }
-                else:
-                    raise HTTPException(status_code=response.status, detail="Binance API error")
+        session = await get_http_session()
+        async with session.get(url, params=params) as response:
+            logger.info(f"Binance API response status: {response.status}")
 
+            if response.status == 200:
+                data = await response.json()
+                logger.debug(f"Successfully fetched market stats for {symbol.upper()}")
+
+                return {
+                    "symbol": data["symbol"],
+                    "price_change": float(data["priceChange"]),
+                    "price_change_percent": float(data["priceChangePercent"]),
+                    "weighted_avg_price": float(data["weightedAvgPrice"]),
+                    "last_price": float(data["lastPrice"]),
+                    "volume": float(data["volume"]),
+                    "quote_volume": float(data["quoteVolume"]),
+                    "high_24h": float(data["highPrice"]),
+                    "low_24h": float(data["lowPrice"]),
+                    "open_price": float(data["openPrice"]),
+                    "close_time": data["closeTime"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                error_text = await response.text()
+                logger.error(f"Binance API error: status={response.status}, body={error_text}")
+                raise HTTPException(
+                    status_code=response.status,
+                    detail=f"Binance API error: {error_text}"
+                )
+
+    except aiohttp.ClientError as e:
+        logger.error(f"Network error fetching market stats for {symbol}: {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Network error: {str(e)}"
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout fetching market stats for {symbol}")
+        raise HTTPException(
+            status_code=504,
+            detail="Request timeout - Binance API took too long to respond"
+        )
     except Exception as e:
+        logger.error(f"Unexpected error fetching market stats for {symbol}: {type(e).__name__}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Error fetching market stats: {str(e)}"

@@ -104,3 +104,12 @@ async def shutdown_event():
         logger.info(f">> Closed historical data service session")
     except Exception as e:
         logger.info(f">> Warning: Could not close historical data service: {e}")
+
+    # Close HTTP session from market API
+    try:
+        from app.api.v1 import market
+        if market._http_session and not market._http_session.closed:
+            await market._http_session.close()
+            logger.info(f">> Closed HTTP session")
+    except Exception as e:
+        logger.info(f">> Warning: Could not close HTTP session: {e}")
