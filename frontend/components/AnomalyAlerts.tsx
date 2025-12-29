@@ -124,7 +124,9 @@ export function AnomalyAlerts({ symbol, wsData }: AnomalyAlertsProps) {
       {alerts.length === 0 ? (
         <div className="text-center py-8 bg-[#fef9f7] rounded-lg border border-[#f5f0ed]">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-[#c17555]/10 to-[#d4a88e]/10 flex items-center justify-center">
-            <span className="text-2xl">✓</span>
+            <svg className="w-6 h-6 text-[#c17555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <p className="text-sm font-medium text-gray-700 mb-1">No Anomalies Detected</p>
           <p className="text-xs text-gray-500">Market behavior is within normal range</p>
@@ -147,14 +149,18 @@ export function AnomalyAlerts({ symbol, wsData }: AnomalyAlertsProps) {
                     className="rounded-lg p-4 bg-[#fef9f7] border border-[#d4a88e] border-l-4 border-l-[#a86448] transition-all hover:shadow-md"
                   >
                     <div className="flex items-start gap-3">
-                      <span className="text-2xl flex-shrink-0">{alert.icon}</span>
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#a86448] to-[#c17555] flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#a86448] mb-1">{alert.title}</p>
                         <p className="text-sm text-gray-700 mb-2">{alert.description}</p>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                             <p className="text-xs text-gray-600 truncate">{alert.context}</p>
                           </div>
@@ -189,14 +195,19 @@ export function AnomalyAlerts({ symbol, wsData }: AnomalyAlertsProps) {
                     className="rounded-lg p-4 bg-[#fef9f7] border border-[#d4a88e] border-l-4 border-l-[#c17555] transition-all hover:shadow-md"
                   >
                     <div className="flex items-start gap-3">
-                      <span className="text-2xl flex-shrink-0">{alert.icon}</span>
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#c17555] to-[#d4a88e] flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#c17555] mb-1">{alert.title}</p>
                         <p className="text-sm text-gray-700 mb-2">{alert.description}</p>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                             <p className="text-xs text-gray-600 truncate">{alert.context}</p>
                           </div>

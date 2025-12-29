@@ -33,22 +33,22 @@ export default function Home() {
             <svg className="w-12 h-12" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2563eb" />
-                  <stop offset="100%" stopColor="#7c3aed" />
+                  <stop offset="0%" stopColor="#c17555" />
+                  <stop offset="100%" stopColor="#d4a88e" />
                 </linearGradient>
               </defs>
               {/* Central core */}
               <circle cx="24" cy="24" r="4" fill="url(#brandGradient)"/>
               {/* Data nodes */}
-              <circle cx="12" cy="12" r="2.5" fill="#3b82f6" opacity="0.8"/>
-              <circle cx="36" cy="12" r="2.5" fill="#3b82f6" opacity="0.8"/>
-              <circle cx="12" cy="36" r="2.5" fill="#7c3aed" opacity="0.8"/>
-              <circle cx="36" cy="36" r="2.5" fill="#7c3aed" opacity="0.8"/>
+              <circle cx="12" cy="12" r="2.5" fill="#c17555" opacity="0.8"/>
+              <circle cx="36" cy="12" r="2.5" fill="#c17555" opacity="0.8"/>
+              <circle cx="12" cy="36" r="2.5" fill="#d4a88e" opacity="0.8"/>
+              <circle cx="36" cy="36" r="2.5" fill="#d4a88e" opacity="0.8"/>
               {/* Connection lines */}
-              <line x1="12" y1="12" x2="24" y2="24" stroke="#3b82f6" strokeWidth="1" opacity="0.3"/>
-              <line x1="36" y1="12" x2="24" y2="24" stroke="#3b82f6" strokeWidth="1" opacity="0.3"/>
-              <line x1="12" y1="36" x2="24" y2="24" stroke="#7c3aed" strokeWidth="1" opacity="0.3"/>
-              <line x1="36" y1="36" x2="24" y2="24" stroke="#7c3aed" strokeWidth="1" opacity="0.3"/>
+              <line x1="12" y1="12" x2="24" y2="24" stroke="#c17555" strokeWidth="1" opacity="0.3"/>
+              <line x1="36" y1="12" x2="24" y2="24" stroke="#c17555" strokeWidth="1" opacity="0.3"/>
+              <line x1="12" y1="36" x2="24" y2="24" stroke="#d4a88e" strokeWidth="1" opacity="0.3"/>
+              <line x1="36" y1="36" x2="24" y2="24" stroke="#d4a88e" strokeWidth="1" opacity="0.3"/>
             </svg>
             <h1 className="text-5xl font-semibold text-gray-900">
               CryptoSage
@@ -96,26 +96,15 @@ export default function Home() {
         </div>
 
         {/* Features - Claude style: clean cards with custom icons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16 max-w-4xl mx-auto">
           <FeatureCard
-            title="Market Radar"
-            description="Track price movements and detect significant changes in real-time using WebSocket connections"
+            title="Market Dashboard"
+            description="Real-time market monitoring with live prices, technical analysis, and curated news from multiple sources with sentiment analysis"
             href="/dashboard"
-            gradient="from-blue-500 to-cyan-500"
+            gradient="from-[#c17555] to-[#d4a88e]"
           >
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </FeatureCard>
-
-          <FeatureCard
-            title="News Aggregation"
-            description="Collect and analyze news from CoinDesk, Cointelegraph, Decrypt, and The Block with sentiment analysis"
-            href="/dashboard"
-            gradient="from-violet-500 to-purple-500"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </FeatureCard>
 
@@ -123,7 +112,7 @@ export default function Home() {
             title="AI Intelligence"
             description="Ask questions about market trends, get AI-powered insights based on real-time data and news"
             href="/chat"
-            gradient="from-pink-500 to-rose-500"
+            gradient="from-[#c17555] to-[#d4a88e]"
           >
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -135,7 +124,7 @@ export default function Home() {
         <div className="flex gap-4 justify-center mb-12">
           <Link
             href="/dashboard"
-            className="px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition font-medium inline-flex items-center gap-2"
+            className="px-6 py-3 rounded-lg bg-gradient-to-r from-[#c17555] to-[#d4a88e] text-white hover:from-[#a86448] hover:to-[#c17555] transition font-medium inline-flex items-center gap-2 shadow-sm"
           >
             Get Started
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +135,7 @@ export default function Home() {
             href={getApiUrl(config.endpoints.docs)}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-3 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition font-medium text-gray-700"
+            className="px-6 py-3 rounded-lg border border-[#d4a88e] hover:border-[#c17555] hover:bg-[#fef9f7] transition font-medium text-gray-700"
           >
             API Docs
           </a>
@@ -154,12 +143,12 @@ export default function Home() {
 
         {/* Disclaimer - Claude style: clear and honest */}
         <div className="max-w-3xl mx-auto mb-12">
-          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="p-4 rounded-lg bg-[#fef9f7] border border-[#d4a88e]">
             <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#c17555] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm text-blue-900 leading-relaxed">
+              <p className="text-sm text-gray-700 leading-relaxed">
                 CryptoSage is an information aggregation platform. We help you understand market changes through data and AI analysis.
                 We do not provide trading signals or investment advice.
               </p>
