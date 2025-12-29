@@ -64,7 +64,7 @@ class SchedulerService:
             self.last_news_update = datetime.now()
 
             logger.info(f"[Scheduler] Successfully stored {stored_count}/{len(articles)} articles")
-            logger.info(f"[Scheduler] Next update in 30 minutes")
+            logger.info(f"[Scheduler] Next update in 12 hours")
             logger.info(f"{'='*60}\n")
 
         except Exception as e:
@@ -107,16 +107,16 @@ class SchedulerService:
 
         logger.info("\n[Scheduler] Initializing scheduler...")
 
-        # Task 1: Collect news every 30 minutes
+        # Task 1: Collect news every 12 hours (reduced from 30min to save costs)
         self.scheduler.add_job(
             self.collect_and_store_news,
-            trigger=IntervalTrigger(minutes=30),
+            trigger=IntervalTrigger(hours=12),
             id='news_collection',
             name='Collect and store crypto news',
             replace_existing=True,
             max_instances=1  # Prevent overlapping runs
         )
-        logger.info("[Scheduler] Added job: News collection (every 30 minutes)")
+        logger.info("[Scheduler] Added job: News collection (every 12 hours)")
 
         # Task 2: Cleanup old news daily at 3 AM
         self.scheduler.add_job(
