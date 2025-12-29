@@ -110,6 +110,15 @@ async def shutdown_event():
         from app.api.v1 import market
         if market._http_session and not market._http_session.closed:
             await market._http_session.close()
-            logger.info(f">> Closed HTTP session")
+            logger.info(f">> Closed market API HTTP session")
     except Exception as e:
-        logger.info(f">> Warning: Could not close HTTP session: {e}")
+        logger.info(f">> Warning: Could not close market API HTTP session: {e}")
+
+    # Close market service session
+    try:
+        from app.services.market_service import get_market_service
+        market_service = get_market_service()
+        await market_service.close()
+        logger.info(f">> Closed market service session")
+    except Exception as e:
+        logger.info(f">> Warning: Could not close market service: {e}")

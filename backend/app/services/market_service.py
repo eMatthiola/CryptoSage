@@ -13,6 +13,8 @@ from ta.volatility import BollingerBands
 from datetime import datetime
 from app.core.config import settings
 from app.core.logger import get_logger
+import aiohttp
+import asyncio
 
 logger = get_logger(__name__)
 
@@ -24,34 +26,52 @@ class MarketDataService:
     """
 
     def __init__(self):
-        """Initialize Binance client"""
+        """Initialize market service with HTTP client"""
+        # Use direct HTTP instead of Binance SDK to avoid geo-restrictions
+        self.base_urls = [
+            "https://api.binance.us/api/v3",      # Primary for US-based servers
+            "https://api.binance.com/api/v3"      # Fallback
+        ]
+        self._http_session: Optional[aiohttp.ClientSession] = None
+
+        # Keep Binance SDK client for advanced features (if needed)
         self.client: Optional[AsyncClient] = None
         self.api_key = settings.BINANCE_API_KEY
         self.api_secret = settings.BINANCE_SECRET_KEY
 
+    async def _get_http_session(self) -> aiohttp.ClientSession:
+        """Get or create shared HTTP session"""
+        if self._http_session is None or self._http_session.closed:
+            timeout = aiohttp.ClientTimeout(total=10, connect=5)
+            self._http_session = aiohttp.ClientSession(timeout=timeout)
+        return self._http_session
+
     async def _get_client(self) -> AsyncClient:
-        """Get or create Binance client"""
+        """Get or create Binance SDK client (for advanced features only)"""
         if self.client is None:
             if self.api_key and self.api_secret:
-                # Authenticated client
                 self.client = await AsyncClient.create(
                     api_key=self.api_key,
                     api_secret=self.api_secret
                 )
             else:
-                # Public client (no API key needed)
                 self.client = await AsyncClient.create()
         return self.client
 
     async def close(self):
-        """Close Binance client"""
+        """Close HTTP session and Binance client"""
+        if self._http_session and not self._http_session.closed:
+            await self._http_session.close()
+            self._http_session = None
         if self.client:
             await self.client.close_connection()
             self.client = None
 
     async def get_current_price(self, symbol: str = "BTCUSDT") -> Dict:
         """
-        Get current price for a symbol
+        Get current price with fallback strategy
+
+        Tries: Binance US → Binance.com → Demo data
 
         Args:
             symbol: Trading pair symbol (e.g., BTCUSDT)
@@ -59,28 +79,49 @@ class MarketDataService:
         Returns:
             Dict with current price data
         """
-        try:
-            client = await self._get_client()
+        session = await self._get_http_session()
+        last_error = None
 
-            # Get 24hr ticker
-            ticker = await client.get_ticker(symbol=symbol)
+        # Try each API in order
+        for base_url in self.base_urls:
+            url = f"{base_url}/ticker/24hr"
+            api_name = "Binance US" if "binance.us" in base_url else "Binance.com"
 
-            return {
-                "symbol": symbol,
-                "price": float(ticker['lastPrice']),
-                "change_24h": float(ticker['priceChangePercent']),
-                "volume_24h": float(ticker['volume']),
-                "high_24h": float(ticker['highPrice']),
-                "low_24h": float(ticker['lowPrice']),
-                "timestamp": datetime.now().isoformat()
-            }
+            try:
+                async with session.get(url, params={"symbol": symbol}) as response:
+                    # Handle geo-restriction (451) - try next API
+                    if response.status == 451:
+                        logger.warning(f"[Market Service] {api_name} geo-restricted (451), trying next...")
+                        last_error = "Geo-restricted"
+                        continue
 
-        except BinanceAPIException as e:
-            logger.info(f"[Market Service Error] Binance API error: {e}")
-            return self._get_demo_data(symbol)
-        except Exception as e:
-            logger.info(f"[Market Service Error] Error fetching price: {e}")
-            return self._get_demo_data(symbol)
+                    if response.status == 200:
+                        ticker = await response.json()
+                        logger.debug(f"[Market Service] Successfully fetched from {api_name}")
+                        return {
+                            "symbol": symbol,
+                            "price": float(ticker['lastPrice']),
+                            "change_24h": float(ticker['priceChangePercent']),
+                            "volume_24h": float(ticker['volume']),
+                            "high_24h": float(ticker['highPrice']),
+                            "low_24h": float(ticker['lowPrice']),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"[Market Service] {api_name} error: {response.status}, trying next...")
+                        last_error = f"HTTP {response.status}"
+                        continue
+
+            except Exception as e:
+                logger.warning(f"[Market Service] {api_name} exception: {type(e).__name__}, trying next...")
+                last_error = str(e)
+                continue
+
+        # All APIs failed - return demo data
+        logger.error(f"[Market Service] All data sources failed. Last error: {last_error}")
+        logger.info("[Market Service] Returning demo data as fallback")
+        return self._get_demo_data(symbol)
 
     async def get_historical_klines(
         self,
@@ -89,7 +130,9 @@ class MarketDataService:
         limit: int = 100
     ) -> pd.DataFrame:
         """
-        Get historical candlestick data
+        Get historical candlestick data with fallback strategy
+
+        Tries: Binance US → Binance.com
 
         Args:
             symbol: Trading pair symbol
@@ -99,36 +142,62 @@ class MarketDataService:
         Returns:
             DataFrame with OHLCV data
         """
-        try:
-            client = await self._get_client()
+        session = await self._get_http_session()
+        last_error = None
 
-            # Get klines
-            klines = await client.get_klines(
-                symbol=symbol,
-                interval=interval,
-                limit=limit
-            )
+        # Try each API in order
+        for base_url in self.base_urls:
+            url = f"{base_url}/klines"
+            api_name = "Binance US" if "binance.us" in base_url else "Binance.com"
 
-            # Convert to DataFrame
-            df = pd.DataFrame(klines, columns=[
-                'timestamp', 'open', 'high', 'low', 'close', 'volume',
-                'close_time', 'quote_volume', 'trades',
-                'taker_buy_base', 'taker_buy_quote', 'ignore'
-            ])
+            try:
+                params = {
+                    "symbol": symbol,
+                    "interval": interval,
+                    "limit": limit
+                }
 
-            # Convert to proper types
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            for col in ['open', 'high', 'low', 'close', 'volume']:
-                df[col] = df[col].astype(float)
+                async with session.get(url, params=params) as response:
+                    # Handle geo-restriction (451) - try next API
+                    if response.status == 451:
+                        logger.warning(f"[Market Service] {api_name} geo-restricted (451), trying next...")
+                        last_error = "Geo-restricted"
+                        continue
 
-            # Set index
-            df.set_index('timestamp', inplace=True)
+                    if response.status == 200:
+                        klines = await response.json()
+                        logger.debug(f"[Market Service] Successfully fetched klines from {api_name}")
 
-            return df[['open', 'high', 'low', 'close', 'volume']]
+                        # Convert to DataFrame
+                        df = pd.DataFrame(klines, columns=[
+                            'timestamp', 'open', 'high', 'low', 'close', 'volume',
+                            'close_time', 'quote_volume', 'trades',
+                            'taker_buy_base', 'taker_buy_quote', 'ignore'
+                        ])
 
-        except Exception as e:
-            logger.info(f"[Market Service Error] Error fetching klines: {e}")
-            return pd.DataFrame()
+                        # Convert to proper types
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        for col in ['open', 'high', 'low', 'close', 'volume']:
+                            df[col] = df[col].astype(float)
+
+                        # Set index
+                        df.set_index('timestamp', inplace=True)
+
+                        return df[['open', 'high', 'low', 'close', 'volume']]
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"[Market Service] {api_name} error: {response.status}, trying next...")
+                        last_error = f"HTTP {response.status}"
+                        continue
+
+            except Exception as e:
+                logger.warning(f"[Market Service] {api_name} exception: {type(e).__name__}, trying next...")
+                last_error = str(e)
+                continue
+
+        # All APIs failed
+        logger.error(f"[Market Service] All klines sources failed. Last error: {last_error}")
+        return pd.DataFrame()
 
     async def get_technical_indicators(
         self,
@@ -200,7 +269,9 @@ class MarketDataService:
         limit: int = 20
     ) -> Dict:
         """
-        Get orderbook data and analyze depth
+        Get orderbook data and analyze depth with fallback strategy
+
+        Tries: Binance US → Binance.com → Demo data
 
         Args:
             symbol: Trading pair symbol
@@ -209,56 +280,86 @@ class MarketDataService:
         Returns:
             Dict with orderbook analysis
         """
-        try:
-            client = await self._get_client()
+        session = await self._get_http_session()
+        last_error = None
 
-            # Get order book
-            depth = await client.get_order_book(symbol=symbol, limit=limit)
+        # Try each API in order
+        for base_url in self.base_urls:
+            url = f"{base_url}/depth"
+            api_name = "Binance US" if "binance.us" in base_url else "Binance.com"
 
-            # Calculate metrics
-            bids = depth['bids']
-            asks = depth['asks']
+            try:
+                params = {
+                    "symbol": symbol,
+                    "limit": limit
+                }
 
-            total_bid_volume = sum(float(bid[1]) for bid in bids)
-            total_ask_volume = sum(float(ask[1]) for ask in asks)
+                async with session.get(url, params=params) as response:
+                    # Handle geo-restriction (451) - try next API
+                    if response.status == 451:
+                        logger.warning(f"[Market Service] {api_name} geo-restricted (451), trying next...")
+                        last_error = "Geo-restricted"
+                        continue
 
-            # Bid/Ask ratio
-            bid_ask_ratio = total_bid_volume / total_ask_volume if total_ask_volume > 0 else 1.0
+                    if response.status == 200:
+                        depth = await response.json()
+                        logger.debug(f"[Market Service] Successfully fetched orderbook from {api_name}")
 
-            # Spread
-            best_bid = float(bids[0][0])
-            best_ask = float(asks[0][0])
-            spread = best_ask - best_bid
-            spread_pct = (spread / best_ask) * 100
+                        # Calculate metrics
+                        bids = depth['bids']
+                        asks = depth['asks']
 
-            # Large orders (top 20% by volume)
-            bid_volumes = [float(bid[1]) for bid in bids]
-            ask_volumes = [float(ask[1]) for ask in asks]
+                        total_bid_volume = sum(float(bid[1]) for bid in bids)
+                        total_ask_volume = sum(float(ask[1]) for ask in asks)
 
-            bid_threshold = sorted(bid_volumes, reverse=True)[int(len(bid_volumes) * 0.2)]
-            ask_threshold = sorted(ask_volumes, reverse=True)[int(len(ask_volumes) * 0.2)]
+                        # Bid/Ask ratio
+                        bid_ask_ratio = total_bid_volume / total_ask_volume if total_ask_volume > 0 else 1.0
 
-            large_bids = sum(1 for v in bid_volumes if v >= bid_threshold)
-            large_asks = sum(1 for v in ask_volumes if v >= ask_threshold)
+                        # Spread
+                        best_bid = float(bids[0][0])
+                        best_ask = float(asks[0][0])
+                        spread = best_ask - best_bid
+                        spread_pct = (spread / best_ask) * 100
 
-            return {
-                "symbol": symbol,
-                "bid_ask_ratio": round(bid_ask_ratio, 3),
-                "spread": round(spread, 2),
-                "spread_pct": round(spread_pct, 4),
-                "total_bid_volume": round(total_bid_volume, 4),
-                "total_ask_volume": round(total_ask_volume, 4),
-                "large_orders": {
-                    "bids": large_bids,
-                    "asks": large_asks
-                },
-                "depth_strength": round(min(total_bid_volume, total_ask_volume) / 1000, 2),
-                "timestamp": datetime.now().isoformat()
-            }
+                        # Large orders (top 20% by volume)
+                        bid_volumes = [float(bid[1]) for bid in bids]
+                        ask_volumes = [float(ask[1]) for ask in asks]
 
-        except Exception as e:
-            logger.info(f"[Market Service Error] Error fetching orderbook: {e}")
-            return self._get_demo_orderbook()
+                        bid_threshold = sorted(bid_volumes, reverse=True)[int(len(bid_volumes) * 0.2)]
+                        ask_threshold = sorted(ask_volumes, reverse=True)[int(len(ask_volumes) * 0.2)]
+
+                        large_bids = sum(1 for v in bid_volumes if v >= bid_threshold)
+                        large_asks = sum(1 for v in ask_volumes if v >= ask_threshold)
+
+                        return {
+                            "symbol": symbol,
+                            "bid_ask_ratio": round(bid_ask_ratio, 3),
+                            "spread": round(spread, 2),
+                            "spread_pct": round(spread_pct, 4),
+                            "total_bid_volume": round(total_bid_volume, 4),
+                            "total_ask_volume": round(total_ask_volume, 4),
+                            "large_orders": {
+                                "bids": large_bids,
+                                "asks": large_asks
+                            },
+                            "depth_strength": round(min(total_bid_volume, total_ask_volume) / 1000, 2),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"[Market Service] {api_name} error: {response.status}, trying next...")
+                        last_error = f"HTTP {response.status}"
+                        continue
+
+            except Exception as e:
+                logger.warning(f"[Market Service] {api_name} exception: {type(e).__name__}, trying next...")
+                last_error = str(e)
+                continue
+
+        # All APIs failed - return demo data
+        logger.error(f"[Market Service] All orderbook sources failed. Last error: {last_error}")
+        logger.info("[Market Service] Returning demo orderbook as fallback")
+        return self._get_demo_orderbook()
 
     def _get_demo_data(self, symbol: str) -> Dict:
         """Return demo market data when API is unavailable"""
