@@ -45,6 +45,4 @@ psutil>=5.9.0  # For memory monitoring
 qdrant-client>=1.7.0
 sentence-transformers>=2.3.0
 # Note: transformers is included as dependency of sentence-transformers, not needed separately
-# Using CPU-only torch for memory optimization (saves 200-300 MB vs full version)
-# Install with: pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
-torch==2.1.0
+# Note: torch is installed separately in Dockerfile with CPU-only version for memory optimization

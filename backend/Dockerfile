@@ -25,10 +25,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # 安装 Python 依赖
-# First install PyTorch CPU version from special index
+# Install PyTorch CPU version first (must be before sentence-transformers)
 RUN pip install --no-cache-dir torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
 
-# Then install remaining dependencies
+# Install all other dependencies
+# sentence-transformers will use the already-installed torch
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
