@@ -55,9 +55,11 @@ class VectorService:
             logger.info("[Vector Service] Connected to Qdrant successfully")
 
             # Initialize embedding model
-            # Using multilingual model for English + Chinese support
-            logger.info("[Vector Service] Loading embedding model...")
-            self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            # Using lightweight model (all-MiniLM-L6-v2: ~100MB vs 500MB)
+            # Trade-off: Smaller size, still excellent quality for English
+            # Note: If multilingual support is critical, consider paraphrase-multilingual-mpnet-base-v2
+            logger.info("[Vector Service] Loading lightweight embedding model...")
+            self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
             # Initialize collection
             self._init_collection()

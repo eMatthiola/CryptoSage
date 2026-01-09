@@ -3,6 +3,9 @@ CryptoSage AI - FastAPI Backend
 Main application entry point
 """
 
+import asyncio
+import psutil
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -13,6 +16,9 @@ from app.api.v1 import chat, health, market, news, market_radar
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Memory monitoring task
+_memory_monitor_task = None
 
 # Create rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -57,6 +63,41 @@ app.include_router(market_radar.router, prefix="/api/v1/market", tags=["Market R
 app.include_router(news.router, prefix="/api/v1", tags=["News & RAG"])
 
 
+async def monitor_memory():
+    """
+    Background task to monitor memory usage
+    Logs memory statistics every 10 minutes for optimization tracking
+    """
+    process = psutil.Process(os.getpid())
+
+    while True:
+        try:
+            mem = process.memory_info()
+            mem_mb = mem.rss / 1024 / 1024
+            mem_percent = process.memory_percent()
+
+            logger.info(f"[Memory Monitor] RSS: {mem_mb:.1f} MB ({mem_percent:.1f}%)")
+
+            # Log cache statistics if available
+            try:
+                from app.services.historical_data_service import get_historical_data_service
+                hist_service = get_historical_data_service()
+                cache_stats = hist_service.get_cache_stats()
+                logger.info(f"[Memory Monitor] Historical Cache: {cache_stats['size']}/{cache_stats['maxsize']} entries")
+            except Exception as e:
+                logger.debug(f"[Memory Monitor] Could not get cache stats: {e}")
+
+            # Wait 10 minutes before next check
+            await asyncio.sleep(600)
+
+        except asyncio.CancelledError:
+            logger.info("[Memory Monitor] Monitoring stopped")
+            break
+        except Exception as e:
+            logger.error(f"[Memory Monitor] Error: {e}")
+            await asyncio.sleep(600)
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -70,9 +111,18 @@ async def root():
 @app.on_event("startup")
 async def startup_event():
     """Startup event"""
+    global _memory_monitor_task
+
     logger.info(f">> Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info(f">> API Documentation: http://localhost:8000/docs")
     logger.info(f">> Environment: {settings.ENVIRONMENT}")
+
+    # Start memory monitoring
+    try:
+        _memory_monitor_task = asyncio.create_task(monitor_memory())
+        logger.info(f">> Started memory monitoring (logs every 10 minutes)")
+    except Exception as e:
+        logger.info(f">> Warning: Could not start memory monitor: {e}")
 
     # Start scheduler for periodic tasks
     try:
@@ -86,7 +136,18 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event"""
+    global _memory_monitor_task
+
     logger.info(f">> Shutting down {settings.PROJECT_NAME}")
+
+    # Stop memory monitor
+    try:
+        if _memory_monitor_task:
+            _memory_monitor_task.cancel()
+            await _memory_monitor_task
+            logger.info(f">> Stopped memory monitor")
+    except Exception as e:
+        logger.info(f">> Warning: Could not stop memory monitor: {e}")
 
     # Stop scheduler
     try:

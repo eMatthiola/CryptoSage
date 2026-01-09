@@ -9,11 +9,83 @@ import aiohttp
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
+from collections import OrderedDict
 import os
 import json
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class LRUCache:
+    """
+    LRU Cache with TTL support and maximum size limit
+    Prevents unbounded memory growth
+    """
+    def __init__(self, maxsize: int = 20, ttl: int = 300):
+        """
+        Args:
+            maxsize: Maximum number of items in cache
+            ttl: Time-to-live in seconds
+        """
+        self.cache = OrderedDict()
+        self.timestamps = {}
+        self.maxsize = maxsize
+        self.ttl = ttl
+
+    def get(self, key: str) -> Optional[pd.DataFrame]:
+        """Get item from cache if valid"""
+        if key not in self.cache:
+            return None
+
+        # Check TTL
+        if not self._is_valid(key):
+            self._delete(key)
+            return None
+
+        # Move to end (most recently used)
+        self.cache.move_to_end(key)
+        return self.cache[key].copy()
+
+    def set(self, key: str, value: pd.DataFrame):
+        """Set item in cache with LRU eviction"""
+        # If key exists, update and move to end
+        if key in self.cache:
+            self.cache.move_to_end(key)
+
+        # Add new item
+        self.cache[key] = value.copy()
+        self.timestamps[key] = datetime.now()
+
+        # Evict oldest if over maxsize
+        if len(self.cache) > self.maxsize:
+            oldest_key = next(iter(self.cache))
+            self._delete(oldest_key)
+            logger.info(f"[LRU Cache] Evicted oldest entry: {oldest_key} (cache size: {len(self.cache)})")
+
+    def _is_valid(self, key: str) -> bool:
+        """Check if cache entry is still valid"""
+        if key not in self.timestamps:
+            return False
+
+        age_seconds = (datetime.now() - self.timestamps[key]).total_seconds()
+        return age_seconds < self.ttl
+
+    def _delete(self, key: str):
+        """Delete cache entry"""
+        if key in self.cache:
+            del self.cache[key]
+        if key in self.timestamps:
+            del self.timestamps[key]
+
+    def get_stats(self) -> Dict:
+        """Get cache statistics"""
+        return {
+            "size": len(self.cache),
+            "maxsize": self.maxsize,
+            "ttl": self.ttl,
+            "keys": list(self.cache.keys())
+        }
 
 
 class HistoricalDataService:
@@ -28,10 +100,10 @@ class HistoricalDataService:
         self.data_dir = "data/klines"
         os.makedirs(self.data_dir, exist_ok=True)
 
-        # In-memory cache
-        self._cache = {}
-        self._cache_timestamps = {}
-        self._cache_ttl = 300  # 5 minutes TTL
+        # LRU cache with size limit (prevents unbounded growth)
+        # Max 20 entries, 5 minutes TTL
+        # Each entry ~30KB, total max ~600KB (vs potentially 500+ MB unbounded)
+        self._cache = LRUCache(maxsize=20, ttl=300)
 
         # Shared aiohttp session (singleton pattern)
         self._session: Optional[aiohttp.ClientSession] = None
@@ -247,16 +319,6 @@ class HistoricalDataService:
         """Generate cache key"""
         return f"{symbol}_{interval}_{days}"
 
-    def _is_cache_valid(self, cache_key: str) -> bool:
-        """Check if cache is still valid"""
-        if cache_key not in self._cache_timestamps:
-            return False
-
-        cache_time = self._cache_timestamps[cache_key]
-        age_seconds = (datetime.now() - cache_time).total_seconds()
-
-        return age_seconds < self._cache_ttl
-
     async def get_or_fetch_data(
         self,
         symbol: str,
@@ -283,10 +345,12 @@ class HistoricalDataService:
         """
         cache_key = self._get_cache_key(symbol, interval, days)
 
-        # Level 1: Check in-memory cache
-        if not force_refresh and self._is_cache_valid(cache_key):
-            # logger.info(f"[Historical Data] Using memory cache for {cache_key}")
-            return self._cache[cache_key].copy()
+        # Level 1: Check LRU cache (with TTL)
+        if not force_refresh:
+            cached_df = self._cache.get(cache_key)
+            if cached_df is not None:
+                # logger.info(f"[Historical Data] Using LRU cache for {cache_key}")
+                return cached_df
 
         # Level 2: Try to load from CSV file cache
         if not force_refresh:
@@ -295,20 +359,22 @@ class HistoricalDataService:
                 # Check if data is recent enough (within 1 day)
                 latest_timestamp = df.index[-1]
                 if (datetime.now() - latest_timestamp.to_pydatetime()).days < 1:
-                    # Update memory cache
-                    self._cache[cache_key] = df.copy()
-                    self._cache_timestamps[cache_key] = datetime.now()
+                    # Update LRU cache
+                    self._cache.set(cache_key, df)
                     return df
 
         # Level 3: Fetch fresh data from API
         df = await self.collect_historical_data(symbol, interval, days)
         self.save_to_csv(df, symbol, interval)
 
-        # Update memory cache
-        self._cache[cache_key] = df.copy()
-        self._cache_timestamps[cache_key] = datetime.now()
+        # Update LRU cache
+        self._cache.set(cache_key, df)
 
         return df
+
+    def get_cache_stats(self) -> Dict:
+        """Get cache statistics for monitoring"""
+        return self._cache.get_stats()
 
 
 # Singleton instance
